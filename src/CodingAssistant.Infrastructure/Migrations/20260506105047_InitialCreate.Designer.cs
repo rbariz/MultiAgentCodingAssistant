@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CodingAssistant.Infrastructure.Migrations
 {
     [DbContext(typeof(CodingAssistantDbContext))]
-    [Migration("20260506101700_InitialCreate")]
+    [Migration("20260506105047_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -28,7 +28,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.AgentMessage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -116,7 +115,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.GenerationStep", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -176,7 +174,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.ProjectGeneration", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

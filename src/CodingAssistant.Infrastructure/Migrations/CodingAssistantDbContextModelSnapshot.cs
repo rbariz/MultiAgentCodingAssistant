@@ -25,7 +25,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.AgentMessage", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -113,7 +112,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.GenerationStep", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -173,7 +171,6 @@ namespace CodingAssistant.Infrastructure.Migrations
             modelBuilder.Entity("CodingAssistant.Domain.Entities.ProjectGeneration", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 

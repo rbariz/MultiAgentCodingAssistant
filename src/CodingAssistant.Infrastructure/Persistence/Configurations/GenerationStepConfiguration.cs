@@ -11,6 +11,8 @@ namespace CodingAssistant.Infrastructure.Persistence.Configurations
             builder.ToTable("generation_steps");
 
             builder.HasKey(x => x.Id);
+            builder.Property(x => x.Id)
+                    .ValueGeneratedNever();
 
             builder.Property(x => x.AgentRole)
                 .HasConversion<int>()

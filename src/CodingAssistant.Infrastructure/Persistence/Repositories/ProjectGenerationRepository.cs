@@ -47,5 +47,13 @@ namespace CodingAssistant.Infrastructure.Persistence.Repositories
                 .Take(take)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task AddFileAsync(
+    GeneratedFile file,
+    CancellationToken cancellationToken = default)
+        {
+            await _db.GeneratedFiles.AddAsync(file, cancellationToken);
+        }
+
     }
 }

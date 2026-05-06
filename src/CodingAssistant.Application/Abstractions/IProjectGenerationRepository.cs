@@ -11,5 +11,8 @@ namespace CodingAssistant.Application.Abstractions
         Task<IReadOnlyList<ProjectGeneration>> GetRecentAsync(
             int take,
             CancellationToken cancellationToken = default);
+
+        Task AddFileAsync(GeneratedFile file, CancellationToken cancellationToken = default);
+
     }
 }

@@ -13,6 +13,8 @@ namespace CodingAssistant.Application
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
             services.AddScoped<IProjectGenerationService, ProjectGenerationService>();
+            services.AddScoped<IProjectGenerationOrchestrator, ProjectGenerationOrchestrator>();
+            services.AddScoped<IProjectExportService, ProjectExportService>();
 
             return services;
         }
