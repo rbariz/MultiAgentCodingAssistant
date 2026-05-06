@@ -15,7 +15,16 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 
 
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("WebCors", policy =>
+    {
+        policy
+            .WithOrigins("https://localhost:7051", "http://localhost:5220")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -32,8 +41,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+// app.UseHttpsRedirection();
 
-
+app.UseCors("WebCors");
 app.MapControllers();
 app.Run();

@@ -1,0 +1,137 @@
+﻿@page "/generations"
+
+@rendermode InteractiveServer
+
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<h1>Multi-Agent Coding Assistant</h1>
+
+<div class="card">
+    <label>Prompt</label>
+    <textarea @bind="UserPrompt" rows="5"></textarea>
+
+    <label>Target Stack</label>
+    <input @bind="TargetStack" />
+
+
+    <button type="button" @onclick="CreateGeneration" disabled="@IsLoading">
+        @(IsLoading ? "Generating..." : "Generate Project")
+    </button>
+</div>
+
+@if (Generation is not null)
+{
+    <hr />
+
+    <h2>@Generation.ProjectName</h2>
+    <p>Status: <strong>@Generation.Status</strong></p>
+
+    <a href="@($"{ApiBaseUrl}/api/generations/{Generation.Id}/export")" target="_blank">
+        Download ZIP
+    </a>
+
+    <h3>Steps</h3>
+
+    <ul>
+        @foreach (var step in Generation.Steps.OrderBy(x => x.Order))
+        {
+            <li>
+                <strong>@step.AgentRole</strong> —
+                @step.Name —
+                @step.Status
+            </li>
+        }
+    </ul>
+
+    <h3>Files</h3>
+
+    @foreach (var file in Generation.Files.OrderBy(x => x.Order))
+    {
+        <details>
+            <summary>@file.RelativePath</summary>
+            <pre>@file.Content</pre>
+        </details>
+    }
+}
+
+@code {
+    private string ApiBaseUrl = string.Empty;
+
+    private string UserPrompt { get; set; } =
+        "Build a calculator web app with add, subtract, multiply and divide buttons";
+
+    private string TargetStack { get; set; } = "html-css-js";
+
+    private bool IsLoading { get; set; }
+
+    private ProjectGenerationDto? Generation { get; set; }
+
+    protected override void OnInitialized()
+    {
+        ApiBaseUrl = HttpClientFactory
+            .CreateClient("Api")
+            .BaseAddress!
+            .ToString()
+            .TrimEnd('/');
+    }
+
+    private async Task CreateGeneration()
+    {
+        Console.WriteLine("BUTTON CLICKED");
+        IsLoading = true;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+
+            var response = await client.PostAsJsonAsync(
+                "/api/generations",
+                new CreateGenerationRequest
+                {
+                    UserPrompt = UserPrompt,
+                    TargetStack = TargetStack
+                });
+
+            response.EnsureSuccessStatusCode();
+
+            Generation = await response.Content.ReadFromJsonAsync<ProjectGenerationDto>();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private sealed class CreateGenerationRequest
+    {
+        public string UserPrompt { get; set; } = string.Empty;
+        public string? TargetStack { get; set; }
+    }
+
+    private sealed class ProjectGenerationDto
+    {
+        public Guid Id { get; set; }
+        public string UserPrompt { get; set; } = string.Empty;
+        public string? ProjectName { get; set; }
+        public string? TargetStack { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public List<GeneratedFileDto> Files { get; set; } = [];
+        public List<GenerationStepDto> Steps { get; set; } = [];
+    }
+
+    private sealed class GeneratedFileDto
+    {
+        public string RelativePath { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public int Order { get; set; }
+    }
+
+    private sealed class GenerationStepDto
+    {
+        public string AgentRole { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int Order { get; set; }
+    }
+}
