@@ -30,20 +30,15 @@ namespace CodingAssistant.Api.Controllers
 
         [HttpPost]
         public async Task<ActionResult<ProjectGenerationDto>> Create(
-            [FromBody] CreateGenerationRequest request,
-            CancellationToken cancellationToken)
+    [FromBody] CreateGenerationRequest request,
+    CancellationToken cancellationToken)
         {
             var result = await _service.CreateAsync(request, cancellationToken);
-            await _orchestrator.RunAsync(result.Id, cancellationToken);
-
-
-
-            var completed = await _service.GetByIdAsync(result.Id, cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetById),
                 new { id = result.Id },
-                completed);
+                result);
         }
 
         [HttpGet("{id:guid}")]
@@ -86,6 +81,26 @@ namespace CodingAssistant.Api.Controllers
                 : $"{generation.ProjectName}.zip";
 
             return File(zipBytes, "application/zip", fileName);
+        }
+
+        [HttpPost("{id:guid}/run")]
+        public IActionResult Run(Guid id)
+        {
+            _ = Task.Run(async () =>
+            {
+                using var scope = HttpContext.RequestServices.CreateScope();
+
+                var orchestrator = scope.ServiceProvider
+                    .GetRequiredService<IProjectGenerationOrchestrator>();
+
+                await orchestrator.RunAsync(id);
+            });
+
+            return Accepted(new
+            {
+                id,
+                status = "Started"
+            });
         }
 
         [HttpGet("llm-test")]

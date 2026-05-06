@@ -36,6 +36,7 @@ namespace CodingAssistant.Infrastructure
                     Microsoft.Extensions.Options.IOptions<OllamaOptions>>().Value;
 
                 client.BaseAddress = new Uri(options.BaseUrl);
+                client.Timeout = TimeSpan.FromMinutes(5);
             });
 
 

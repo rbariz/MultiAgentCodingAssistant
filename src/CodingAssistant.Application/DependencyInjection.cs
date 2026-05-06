@@ -1,4 +1,5 @@
-﻿using CodingAssistant.Application.Generations.Services;
+﻿using CodingAssistant.Application.AI.Services;
+using CodingAssistant.Application.Generations.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,8 @@ namespace CodingAssistant.Application
             services.AddScoped<IProjectGenerationService, ProjectGenerationService>();
             services.AddScoped<IProjectGenerationOrchestrator, ProjectGenerationOrchestrator>();
             services.AddScoped<IProjectExportService, ProjectExportService>();
+
+            services.AddScoped<ICodeGenerationAgent, CodeGenerationAgent>();
 
             return services;
         }

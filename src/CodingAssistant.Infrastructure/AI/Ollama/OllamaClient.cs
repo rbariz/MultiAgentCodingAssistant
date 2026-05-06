@@ -21,6 +21,7 @@ namespace CodingAssistant.Infrastructure.AI.Ollama
             IReadOnlyList<LlmChatMessage> messages,
             CancellationToken cancellationToken = default)
         {
+            Console.WriteLine("Calling Ollama...");
             var payload = new
             {
                 model = _options.Model,
@@ -42,7 +43,7 @@ namespace CodingAssistant.Infrastructure.AI.Ollama
             using var document = await JsonDocument.ParseAsync(
                 await response.Content.ReadAsStreamAsync(cancellationToken),
                 cancellationToken: cancellationToken);
-
+            Console.WriteLine("Ollama response received.");
             return document.RootElement
                 .GetProperty("message")
                 .GetProperty("content")

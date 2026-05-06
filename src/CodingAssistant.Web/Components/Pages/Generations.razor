@@ -24,12 +24,28 @@
 {
     <hr />
 
-    <h2>@Generation.ProjectName</h2>
+    <h2>@(string.IsNullOrWhiteSpace(Generation.ProjectName) ? "Generation in progress" : Generation.ProjectName)</h2>
+
     <p>Status: <strong>@Generation.Status</strong></p>
 
-    <a href="@($"{ApiBaseUrl}/api/generations/{Generation.Id}/export")" target="_blank">
-        Download ZIP
-    </a>
+    @if (!string.IsNullOrWhiteSpace(Generation.ErrorMessage))
+    {
+        <div class="error-box">
+            @Generation.ErrorMessage
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <p class="muted">Generation running with Ollama...</p>
+    }
+
+    @if (Generation.Status == "Completed" && Generation.Files.Count > 0)
+    {
+        <a class="primary-link" href="@($"{ApiBaseUrl}/api/generations/{Generation.Id}/export")" target="_blank">
+            Download ZIP
+        </a>
+    }
 
     <h3>Steps</h3>
 
@@ -54,7 +70,6 @@
         </details>
     }
 }
-
 @code {
     private string ApiBaseUrl = string.Empty;
 
@@ -78,14 +93,13 @@
 
     private async Task CreateGeneration()
     {
-        Console.WriteLine("BUTTON CLICKED");
         IsLoading = true;
 
         try
         {
             var client = HttpClientFactory.CreateClient("Api");
 
-            var response = await client.PostAsJsonAsync(
+            var createResponse = await client.PostAsJsonAsync(
                 "/api/generations",
                 new CreateGenerationRequest
                 {
@@ -93,13 +107,55 @@
                     TargetStack = TargetStack
                 });
 
-            response.EnsureSuccessStatusCode();
+            createResponse.EnsureSuccessStatusCode();
 
-            Generation = await response.Content.ReadFromJsonAsync<ProjectGenerationDto>();
+            Generation = await createResponse.Content
+                .ReadFromJsonAsync<ProjectGenerationDto>();
+
+            if (Generation is null)
+                return;
+
+            await InvokeAsync(StateHasChanged);
+
+            var runResponse = await client.PostAsync(
+                $"/api/generations/{Generation.Id}/run",
+                content: null);
+
+            runResponse.EnsureSuccessStatusCode();
+
+            Generation = await client.GetFromJsonAsync<ProjectGenerationDto>(
+                $"/api/generations/{Generation.Id}");
+
+            await InvokeAsync(StateHasChanged);
+
+            await PollGenerationUntilDone(Generation!.Id);
         }
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task PollGenerationUntilDone(Guid id)
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+
+        for (var i = 0; i < 120; i++)
+        {
+            await Task.Delay(2000);
+
+            var refreshed = await client.GetFromJsonAsync<ProjectGenerationDto>(
+                $"/api/generations/{id}");
+
+            if (refreshed is not null)
+            {
+                Generation = refreshed;
+            }
+
+            await InvokeAsync(StateHasChanged);
+
+            if (Generation?.Status is "Completed" or "Failed" or "Cancelled")
+                return;
         }
     }
 
@@ -116,6 +172,7 @@
         public string? ProjectName { get; set; }
         public string? TargetStack { get; set; }
         public string Status { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
         public List<GeneratedFileDto> Files { get; set; } = [];
         public List<GenerationStepDto> Steps { get; set; } = [];
     }
