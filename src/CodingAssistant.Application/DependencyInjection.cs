@@ -19,6 +19,16 @@ namespace CodingAssistant.Application
 
             services.AddScoped<ICodeGenerationAgent, CodeGenerationAgent>();
 
+            services.AddScoped<IProjectPlannerAgent, ProjectPlannerAgent>();
+
+            services.AddScoped<IFileGenerationAgent, FileGenerationAgent>();
+
+            services.AddScoped<IProjectReviewerAgent, ProjectReviewerAgent>();
+
+            services.AddSingleton<IAiJsonParser, AiJsonParser>();
+
+            services.AddSingleton<IAiRetryPolicy, AiRetryPolicy>();
+
             return services;
         }
     }

@@ -276,3 +276,80 @@ summary {
     font-family: monospace;
     font-size: 13px;
 }
+
+.timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin: 16px 0 28px;
+}
+
+.timeline-card {
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: white;
+}
+
+.timeline-title {
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.timeline-status {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.timeline-card.is-running {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+
+.timeline-card.is-completed {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.timeline-card.is-failed {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.live-files {
+    margin: 16px 0 28px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: white;
+}
+
+.live-file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+    .live-file-row:last-child {
+        border-bottom: 0;
+    }
+
+.logs-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #0f172a;
+    color: #e5e7eb;
+    max-height: 320px;
+    overflow: auto;
+}
+
+.log-line {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-family: monospace;
+    font-size: 13px;
+}

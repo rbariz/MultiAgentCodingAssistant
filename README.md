@@ -134,6 +134,10 @@ Generated Files
 ![Generated Files](docs/screenshots/generated-files.png)
 ZIP Export
 ![ZIP Export](docs/screenshots/zip-export.png)
+TimeLine Screen 1
+![Timeline 1 ](docs/screenshots/agent-timeline1.png)
+TimeLine Screen 2
+![Timeline 2 ](docs/screenshots/agent-timeline2.png)
 
 
 ## Roadmap

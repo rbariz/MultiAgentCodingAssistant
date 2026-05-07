@@ -38,6 +38,19 @@
         </div>
     }
 
+
+    <h3>Agent Timeline</h3>
+
+    <div class="timeline-grid">
+        @foreach (var step in _liveSteps)
+        {
+            <div class="timeline-card @StepCss(step.Status)">
+                <div class="timeline-title">@step.Name</div>
+                <div class="timeline-status">@step.Status</div>
+            </div>
+        }
+    </div>
+
     @if (IsLoading)
     {
         <p class="muted">Generation running with Ollama...</p>
@@ -73,6 +86,22 @@
         }
     </div>
 
+    @if (_liveFiles.Count > 0)
+    {
+        <h3>Live Generated Files</h3>
+
+        <div class="live-files">
+            @foreach (var file in _liveFiles)
+            {
+                <div class="live-file-row">
+                    <span>@file.Path</span>
+                    <strong>@file.Status</strong>
+                </div>
+            }
+        </div>
+    }
+
+
     <h3>Files</h3>
 
     @foreach (var file in Generation.Files.OrderBy(x => x.Order))
@@ -99,14 +128,15 @@
 
     private readonly List<string> _liveLogs = [];
 
-    // protected override void OnInitialized()
-    // {
-    //     ApiBaseUrl = HttpClientFactory
-    //         .CreateClient("Api")
-    //         .BaseAddress!
-    //         .ToString()
-    //         .TrimEnd('/');
-    // }
+    private readonly List<LiveStepItem> _liveSteps =
+[
+    new("Planner", "Pending"),
+    new("Architect", "Pending"),
+    new("Developer", "Pending"),
+    new("Reviewer", "Pending")
+    ];
+
+    private readonly List<LiveFileItem> _liveFiles = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,11 +163,6 @@
             InvokeAsync(StateHasChanged);
         });
 
-        _hubConnection.On<object>("FileGenerated", payload =>
-        {
-            _liveLogs.Add(payload?.ToString() ?? "File generated");
-            InvokeAsync(StateHasChanged);
-        });
 
         _hubConnection.On<object>("GenerationCompleted", payload =>
         {
@@ -148,6 +173,55 @@
         _hubConnection.On<object>("GenerationFailed", payload =>
         {
             _liveLogs.Add(payload?.ToString() ?? "Generation failed");
+            InvokeAsync(StateHasChanged);
+        });
+
+
+        _hubConnection.On<StepEvent>("StepStarted", payload =>
+        {
+            UpdateStep(payload.Step, "Running");
+            _liveLogs.Add($"{payload.Step} started");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<StepEvent>("StepCompleted", payload =>
+        {
+            UpdateStep(payload.Step, "Completed");
+            _liveLogs.Add($"{payload.Step} completed");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<FileEvent>("FileGenerationStarted", payload =>
+        {
+            var existing = _liveFiles.FirstOrDefault(x => x.Path == payload.File);
+
+            if (existing is null)
+            {
+                _liveFiles.Add(new LiveFileItem(payload.File, "Generating"));
+            }
+            else
+            {
+                existing.Status = "Generating";
+            }
+
+            _liveLogs.Add($"Generating file: {payload.File}");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<FileEvent>("FileGenerated", payload =>
+        {
+            var existing = _liveFiles.FirstOrDefault(x => x.Path == payload.File);
+
+            if (existing is null)
+            {
+                _liveFiles.Add(new LiveFileItem(payload.File, "Completed"));
+            }
+            else
+            {
+                existing.Status = "Completed";
+            }
+
+            _liveLogs.Add($"File generated: {payload.File}");
             InvokeAsync(StateHasChanged);
         });
 
@@ -179,7 +253,13 @@
                 return;
 
             _liveLogs.Clear();
+            _liveFiles.Clear();
 
+            foreach (var step in _liveSteps)
+            {
+                step.Status = "Pending";
+            }
+            
             await _hubConnection!.InvokeAsync(
                 "JoinGeneration",
                 Generation.Id);
@@ -203,6 +283,7 @@
         finally
         {
             IsLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -227,6 +308,28 @@
             if (Generation?.Status is "Completed" or "Failed" or "Cancelled")
                 return;
         }
+    }
+
+    private void UpdateStep(string name, string status)
+    {
+        var step = _liveSteps.FirstOrDefault(x =>
+            x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        if (step is not null)
+        {
+            step.Status = status;
+        }
+    }
+
+    private static string StepCss(string status)
+    {
+        return status switch
+        {
+            "Completed" => "is-completed",
+            "Running" => "is-running",
+            "Failed" => "is-failed",
+            _ => "is-pending"
+        };
     }
 
     public async ValueTask DisposeAsync()
@@ -268,5 +371,28 @@
         public string Name { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public int Order { get; set; }
+    }
+
+    private sealed record LiveStepItem(string Name, string Status)
+    {
+        public string Name { get; set; } = Name;
+        public string Status { get; set; } = Status;
+    }
+
+    private sealed record LiveFileItem(string Path, string Status)
+    {
+        public string Path { get; set; } = Path;
+        public string Status { get; set; } = Status;
+    }
+
+    private sealed class StepEvent
+    {
+        public string Step { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    private sealed class FileEvent
+    {
+        public string File { get; set; } = string.Empty;
     }
 }
