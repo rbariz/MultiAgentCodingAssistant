@@ -1,7 +1,10 @@
 ﻿@page "/generations"
 
+@implements IAsyncDisposable
+
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.SignalR.Client
 @using System.Net.Http.Json
 @inject IHttpClientFactory HttpClientFactory
 
@@ -60,6 +63,16 @@
         }
     </ul>
 
+
+    <h3>Realtime Logs</h3>
+
+    <div class="logs-panel">
+        @foreach (var log in _liveLogs)
+        {
+            <div class="log-line">@log</div>
+        }
+    </div>
+
     <h3>Files</h3>
 
     @foreach (var file in Generation.Files.OrderBy(x => x.Order))
@@ -82,13 +95,63 @@
 
     private ProjectGenerationDto? Generation { get; set; }
 
-    protected override void OnInitialized()
+    private HubConnection? _hubConnection;
+
+    private readonly List<string> _liveLogs = [];
+
+    // protected override void OnInitialized()
+    // {
+    //     ApiBaseUrl = HttpClientFactory
+    //         .CreateClient("Api")
+    //         .BaseAddress!
+    //         .ToString()
+    //         .TrimEnd('/');
+    // }
+
+    protected override async Task OnInitializedAsync()
     {
         ApiBaseUrl = HttpClientFactory
             .CreateClient("Api")
             .BaseAddress!
             .ToString()
             .TrimEnd('/');
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{ApiBaseUrl}/hubs/generations")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<object>("GenerationStarted", payload =>
+        {
+            _liveLogs.Add("Generation started");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("AgentMessage", payload =>
+        {
+            _liveLogs.Add(payload?.ToString() ?? "Agent message");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("FileGenerated", payload =>
+        {
+            _liveLogs.Add(payload?.ToString() ?? "File generated");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("GenerationCompleted", payload =>
+        {
+            _liveLogs.Add("Generation completed");
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<object>("GenerationFailed", payload =>
+        {
+            _liveLogs.Add(payload?.ToString() ?? "Generation failed");
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hubConnection.StartAsync();
     }
 
     private async Task CreateGeneration()
@@ -110,10 +173,17 @@
             createResponse.EnsureSuccessStatusCode();
 
             Generation = await createResponse.Content
-                .ReadFromJsonAsync<ProjectGenerationDto>();
+                         .ReadFromJsonAsync<ProjectGenerationDto>();
 
             if (Generation is null)
                 return;
+
+            _liveLogs.Clear();
+
+            await _hubConnection!.InvokeAsync(
+                "JoinGeneration",
+                Generation.Id);
+
 
             await InvokeAsync(StateHasChanged);
 
@@ -156,6 +226,14 @@
 
             if (Generation?.Status is "Completed" or "Failed" or "Cancelled")
                 return;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
         }
     }
 

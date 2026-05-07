@@ -2,23 +2,23 @@
 
 ## Description
 
-Multi-Agent Coding Assistant est une plateforme IA de génération automatique de projets logiciels.
+Multi-Agent Coding Assistant est une plateforme IA de génération automatique de projets logiciels construite avec .NET 9, Blazor, EF Core, PostgreSQL et Ollama.
 
-Le système fonctionne comme une petite équipe de développement composée de plusieurs agents IA capables de :
+Le système fonctionne comme une petite équipe virtuelle composée de plusieurs agents IA capables de :
 
 - comprendre une demande utilisateur en langage naturel
-- planifier l’architecture du projet
+- planifier l’architecture d’un projet
 - générer automatiquement les fichiers source
 - organiser la structure du projet
+- produire des logs temps réel
 - relire et valider le code généré
-- produire une application fonctionnelle exportable
+- exporter un projet fonctionnel en ZIP
 
 ---
 
 # Exemple
 
 Prompt utilisateur :
-
 
 Build a calculator web app with add, subtract, multiply and divide buttons
 
@@ -32,21 +32,30 @@ calculator-app/
 avec une application fonctionnelle exportable en ZIP.
 
 Fonctionnalités actuelles
+
 Backend
 .NET 9 Web API
+Clean Architecture
 EF Core + PostgreSQL
-Architecture Clean Architecture
 Repository + UnitOfWork
-Orchestrateur multi-agent MVP
-Génération automatique de fichiers
+Orchestrateur multi-agent
+Workflow asynchrone
+Génération IA via Ollama
 Export ZIP des projets générés
+SignalR realtime notifications
 Frontend
 Blazor Web App
 UI moderne responsive
-Création de génération IA
+Génération IA interactive
+Logs temps réel
 Visualisation des fichiers générés
-Téléchargement du projet ZIP
-Architecture
+Téléchargement ZIP
+Workflow temps réel SignalR
+
+
+
+## Architecture
+
 MultiAgentCodingAssistant/
 ├── src/
 │   ├── CodingAssistant.Api
@@ -58,68 +67,118 @@ MultiAgentCodingAssistant/
 │
 ├── tests/
 │   └── CodingAssistant.Tests
-Multi-Agent Workflow
 
-Le système simule plusieurs agents IA :
+## Workflow Multi-Agent
+
+
+Le système simule plusieurs agents IA collaboratifs :
 
 Agent	Responsabilité
-Planner Agent	Analyse le prompt utilisateur
-Architect Agent	Définit la structure du projet
+Planner Agent	Analyse la demande utilisateur
+Architect Agent	Définit l’architecture du projet
 Developer Agent	Génère les fichiers source
 Reviewer Agent	Vérifie et valide le résultat
-Stack Technique
-Backend
-.NET 9
-ASP.NET Core Web API
-Entity Framework Core
-PostgreSQL
-Swagger/OpenAPI
-Frontend
-Blazor
-CSS moderne responsive
-IA (roadmap)
-OpenAI API
-Ollama
-LangGraph
-Semantic Kernel
-Screenshots
+System Agent	Gère orchestration et monitoring
+Workflow Temps Réel
+User Prompt
+    ↓
+Planner Agent
+    ↓
+Architect Agent
+    ↓
+Developer Agent
+    ↓
+Reviewer Agent
+    ↓
+ZIP Export
+
+Les événements sont diffusés en temps réel via SignalR :
+
+GenerationStarted
+AgentMessage
+FileGenerated
+GenerationCompleted
+GenerationFailed
+
+## Stack Technique
+
+### Backend
+	.NET 9
+	ASP.NET Core Web API
+	Entity Framework Core
+	PostgreSQL
+	SignalR
+	Swagger/OpenAPI
+	
+### Fontend
+	Blazor
+	CSS responsive moderne
+	SignalR Client
+	
+### AI
+	Ollama
+	qwen2.5-coder
+	OpenAI-ready architecture
+	LangGraph-ready architecture
+	Semantic Kernel ready
+	
+## Screenshots
+
 Home
 ![Home](docs/screenshots/home.png)
 Generation UI
-![Generation](docs/screenshots/generation.png)
+![UI Prompt](docs/screenshots/ui-prompt.png)
+Generation UI
+![Generation UI](docs/screenshots/generation-ui.png)
+Realtime Logs
+![Realtime Logs](docs/screenshots/realtime-logs.png)
 Generated Files
-![Files](docs/screenshots/files.png)
-Roadmap
+![Generated Files](docs/screenshots/generated-files.png)
+ZIP Export
+![ZIP Export](docs/screenshots/zip-export.png)
+
+
+## Roadmap
+
 Phase 1 — MVP
  Clean Architecture
  EF Core + PostgreSQL
  API génération
- Multi-agent orchestration MVP
+ Multi-agent orchestration
  Génération HTML/CSS/JS
  Export ZIP
  UI Blazor
+ Workflow asynchrone
+ SignalR realtime
+ Ollama integration
+ 
 Phase 2
- SignalR realtime logs
- Génération async/background jobs
- Templates multiples
+ Background queue workers
+ Multi-template generation
  React/Vue/.NET templates
- Docker generation
+ Dockerfile generation
+ AI architecture planner
+ AI code reviewer
+ Persistent execution history
+
 Phase 3
- OpenAI integration
- Ollama local LLM
- AI code review
- AI architecture planning
- GitHub export
-Phase 4
- Full autonomous coding agents
- Multi-file reasoning
- Test generation
+ OpenAI support
+ Multi-model routing
+ AI test generation
  CI/CD generation
- AI DevOps workflows
-Vision
+ GitHub export
+ Workspace generation
 
-Construire une plateforme IA capable de transformer une idée exprimée en langage naturel en projet logiciel fonctionnel automatiquement.
+Phase 4
+ Autonomous coding workflows
+ Multi-file reasoning
+ AI debugging agent
+ DevOps agent
+ Full agent collaboration system
 
-Auteur
+## Vision
 
+Construire une plateforme IA capable de transformer une idée exprimée en langage naturel en projet logiciel fonctionnel automatiquement grâce à des workflows multi-agents temps réel.
+
+## Autheur
 Rachid Bariz

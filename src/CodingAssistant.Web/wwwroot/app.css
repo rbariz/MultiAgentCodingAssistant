@@ -259,3 +259,20 @@ summary {
     border: 1px solid #fecaca;
     font-weight: 600;
 }
+
+.logs-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #0f172a;
+    color: #e5e7eb;
+    max-height: 320px;
+    overflow: auto;
+}
+
+.log-line {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-family: monospace;
+    font-size: 13px;
+}

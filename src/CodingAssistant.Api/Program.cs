@@ -1,5 +1,8 @@
 
+using CodingAssistant.Api.Hubs;
+using CodingAssistant.Api.Realtime;
 using CodingAssistant.Application;
+using CodingAssistant.Application.Realtime;
 using CodingAssistant.Infrastructure;
 using CodingAssistant.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
+
+builder.Services.AddScoped<IGenerationRealtimeNotifier,
+    SignalRGenerationRealtimeNotifier>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -49,4 +56,5 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors("WebCors");
 app.MapControllers();
+app.MapHub<GenerationHub>("/hubs/generations");
 app.Run();
