@@ -130,8 +130,6 @@ Generation UI
 ![UI Prompt](docs/screenshots/ui-prompt.png)
 Generation UI
 ![Generation UI](docs/screenshots/generation-ui.png)
-Realtime Logs
-![Realtime Logs](docs/screenshots/realtime-logs.png)
 Generated Files
 ![Generated Files](docs/screenshots/generated-files.png)
 ZIP Export
