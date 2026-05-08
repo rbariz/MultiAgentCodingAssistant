@@ -1,4 +1,5 @@
 ﻿using CodingAssistant.Application.AI.Dtos;
+using CodingAssistant.Application.AI.Prompts;
 using CodingAssistant.Domain.Entities;
 using System.Text.Json;
 
@@ -6,9 +7,9 @@ namespace CodingAssistant.Application.AI.Services
 {
     public sealed class ProjectReviewerAgent : IProjectReviewerAgent
     {
-        private readonly ILlmClient _llmClient;
-        private readonly IAiJsonParser _jsonParser;
-        private readonly IAiRetryPolicy _retryPolicy;
+        public readonly ILlmClient _llmClient;
+        public readonly IAiJsonParser _jsonParser;
+        public readonly IAiRetryPolicy _retryPolicy;
 
         public ProjectReviewerAgent(ILlmClient llmClient, IAiJsonParser jsonParser, IAiRetryPolicy retryPolicy)
         {
@@ -27,30 +28,7 @@ namespace CodingAssistant.Application.AI.Services
             return await _retryPolicy.ExecuteAsync(
     async ct =>
     {
-        var systemPrompt = """
-        You are a senior code reviewer acting as a Reviewer Agent.
-
-        Review the generated project and decide if it is runnable and consistent.
-
-        Return ONLY valid JSON.
-        Do not return markdown.
-        Do not wrap JSON in code fences.
-
-        JSON schema:
-        {
-          "isValid": true,
-          "summary": "short review summary",
-          "issues": [],
-          "suggestions": []
-        }
-
-        Validation criteria:
-        - Required files from the plan must be present.
-        - HTML/CSS/JS references should be consistent.
-        - Code should be simple and runnable.
-        - Do not reject for minor style issues.
-        - Reject only if the project is clearly broken.
-        """;
+        var systemPrompt = AiPromptTemplates.ReviewerSystemPrompt;
 
         var filesSummary = files
             .OrderBy(x => x.Order)
@@ -94,7 +72,7 @@ namespace CodingAssistant.Application.AI.Services
     cancellationToken);
         }
 
-        //private static string ExtractJson(string raw)
+        //public static string ExtractJson(string raw)
         //{
         //    var text = raw.Trim();
         //    var firstBrace = text.IndexOf('{');
@@ -106,7 +84,7 @@ namespace CodingAssistant.Application.AI.Services
         //    return text;
         //}
 
-        private static string Truncate(string value, int maxLength)
+        public static string Truncate(string value, int maxLength)
         {
             if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
                 return value;

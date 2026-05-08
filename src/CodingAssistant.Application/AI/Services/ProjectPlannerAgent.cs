@@ -1,13 +1,14 @@
 ﻿using CodingAssistant.Application.AI.Dtos;
+using CodingAssistant.Application.AI.Prompts;
 using System.Text.Json;
 
 namespace CodingAssistant.Application.AI.Services
 {
     public sealed class ProjectPlannerAgent : IProjectPlannerAgent
     {
-        private readonly ILlmClient _llmClient;
-        private readonly IAiJsonParser _jsonParser;
-        private readonly IAiRetryPolicy _retryPolicy;
+        public readonly ILlmClient _llmClient;
+        public readonly IAiJsonParser _jsonParser;
+        public readonly IAiRetryPolicy _retryPolicy;
 
         public ProjectPlannerAgent(ILlmClient llmClient, IAiJsonParser jsonParser, IAiRetryPolicy retryPolicy)
         {
@@ -27,52 +28,20 @@ namespace CodingAssistant.Application.AI.Services
             return await _retryPolicy.ExecuteAsync(
                         async ct =>
                         {
-                            var systemPrompt = """
-        You are a senior software architect acting as a Planner Agent.
-
-        Your task is to analyze the user request and produce a small project plan.
-
-        Return ONLY valid JSON.
-        Do not return markdown.
-        Do not wrap the JSON in code fences.
-        Do not add explanations.
-
-        JSON schema:
-        {
-          "projectName": "kebab-case-project-name",
-          "projectType": "web-app",
-          "description": "short project description",
-          "files": [
-            "index.html",
-            "style.css",
-            "script.js"
-          ],
-          "architectureNotes": [
-            "Use vanilla JavaScript",
-            "Keep the project small and runnable"
-          ]
-        }
-
-        Rules:
-        - Use relative file paths only.
-        - For html-css-js projects, prefer index.html, style.css and script.js.
-        - Keep the project small.
-        - Do not generate file contents here.
-        - Only return the plan.
-        """;
+                            var systemPrompt = AiPromptTemplates.PlannerSystemPrompt;
 
                             var userContent = $"""
-        User request:
-        {userPrompt}
+                            User request:
+                            {userPrompt}
 
-        Target stack:
-        {targetStack ?? "html-css-js"}
-        """;
+                            Target stack:
+                            {targetStack ?? "html-css-js"}
+                            """;
 
                             var raw = await _llmClient.ChatAsync(
                                 [
                                     new LlmChatMessage { Role = "system", Content = systemPrompt },
-                new LlmChatMessage { Role = "user", Content = userContent }
+                                new LlmChatMessage { Role = "user", Content = userContent }
                                 ],
                                 cancellationToken);
 
@@ -91,26 +60,33 @@ namespace CodingAssistant.Application.AI.Services
                                 .Distinct(StringComparer.OrdinalIgnoreCase)
                                 .ToList();
 
+                            if (!result.Files.Any(x => x.Equals("README.md", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                result.Files.Add("README.md");
+                            }
+                            if (!result.Files.Any(x => x.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                result.Files.Add("Dockerfile");
+                            }
+
+                            if (!result.Files.Any(x => x.Equals(".gitignore", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                result.Files.Add(".gitignore");
+                            }
+
+                            if (!result.Files.Any(x => x.Equals("LICENSE", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                result.Files.Add("LICENSE");
+                            }
+
                             return result;
                         },
                         "project planning",
                         cancellationToken);
         }
 
-        //private static string ExtractJson(string raw)
-        //{
-        //    var text = raw.Trim();
 
-        //    var firstBrace = text.IndexOf('{');
-        //    var lastBrace = text.LastIndexOf('}');
-
-        //    if (firstBrace >= 0 && lastBrace > firstBrace)
-        //        return text[firstBrace..(lastBrace + 1)];
-
-        //    return text;
-        //}
-
-        private static string SanitizeProjectName(string? value)
+        public static string SanitizeProjectName(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return "generated-app";
@@ -127,7 +103,7 @@ namespace CodingAssistant.Application.AI.Services
             return cleaned.Trim('-');
         }
 
-        private static string NormalizeRelativePath(string path)
+        public static string NormalizeRelativePath(string path)
         {
             return path
                 .Replace("\\", "/")

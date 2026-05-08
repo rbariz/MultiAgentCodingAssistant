@@ -12,10 +12,10 @@ namespace CodingAssistant.Api.Controllers
     [Route("api/generations")]
     public sealed class GenerationsController : ControllerBase
     {
-        private readonly IProjectGenerationService _service;
-        private readonly IProjectGenerationOrchestrator _orchestrator;
-        private readonly IProjectExportService _exportService;
-        private readonly ILlmClient _llmClient;
+        public readonly IProjectGenerationService _service;
+        public readonly IProjectGenerationOrchestrator _orchestrator;
+        public readonly IProjectExportService _exportService;
+        public readonly ILlmClient _llmClient;
 
         public GenerationsController(IProjectGenerationService service,
             IProjectGenerationOrchestrator orchestrator, 

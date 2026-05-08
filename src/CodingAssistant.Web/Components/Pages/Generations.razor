@@ -4,6 +4,9 @@
 
 @rendermode InteractiveServer
 
+
+@using CodingAssistant.Contracts.Generations
+@using CodingAssistant.Contracts.GitHub
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Net.Http.Json
 @inject IHttpClientFactory HttpClientFactory
@@ -30,6 +33,37 @@
     <h2>@(string.IsNullOrWhiteSpace(Generation.ProjectName) ? "Generation in progress" : Generation.ProjectName)</h2>
 
     <p>Status: <strong>@Generation.Status</strong></p>
+
+
+    @if (Generation?.Status == "Completed")
+    {
+        <div class="github-panel">
+
+            <h3>Publish to GitHub</h3>
+
+            <input type="password"
+                   placeholder="GitHub Personal Access Token"
+                   @bind="GitHubToken" />
+
+            <button @onclick="PublishToGitHub"
+                    disabled="@IsPublishingToGitHub">
+
+                @(IsPublishingToGitHub
+                        ? "Publishing..."
+                        : "Publish to GitHub")
+    </button>
+
+    @if (!string.IsNullOrWhiteSpace(GitHubRepositoryUrl))
+            {
+                <p>
+                    Repository:
+                    <a href="@GitHubRepositoryUrl" target="_blank">
+                        @GitHubRepositoryUrl
+                    </a>
+                </p>
+            }
+        </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(Generation.ErrorMessage))
     {
@@ -86,6 +120,20 @@
         }
     </div>
 
+
+    @if (_streamingFileContent.Count > 0)
+    {
+        <h3>Live AI Streaming</h3>
+
+        @foreach (var item in _streamingFileContent)
+        {
+            <details open>
+                <summary>@item.Key</summary>
+                <pre>@item.Value</pre>
+            </details>
+        }
+    }
+
     @if (_liveFiles.Count > 0)
     {
         <h3>Live Generated Files</h3>
@@ -113,22 +161,24 @@
     }
 }
 @code {
-    private string ApiBaseUrl = string.Empty;
+    public string ApiBaseUrl = string.Empty;
 
-    private string UserPrompt { get; set; } =
+    public string UserPrompt { get; set; } =
         "Build a calculator web app with add, subtract, multiply and divide buttons";
 
-    private string TargetStack { get; set; } = "html-css-js";
+    public string TargetStack { get; set; } = "html-css-js";
 
-    private bool IsLoading { get; set; }
+    public bool IsLoading { get; set; }
 
-    private ProjectGenerationDto? Generation { get; set; }
+    public ProjectGenerationDto? Generation { get; set; }
 
-    private HubConnection? _hubConnection;
+    public HubConnection? _hubConnection;
 
-    private readonly List<string> _liveLogs = [];
+    public readonly Dictionary<string, string> _streamingFileContent = [];
 
-    private readonly List<LiveStepItem> _liveSteps =
+    public readonly List<string> _liveLogs = [];
+
+    public readonly List<LiveStepItem> _liveSteps =
 [
     new("Planner", "Pending"),
     new("Architect", "Pending"),
@@ -136,7 +186,12 @@
     new("Reviewer", "Pending")
     ];
 
-    private readonly List<LiveFileItem> _liveFiles = [];
+    public readonly List<LiveFileItem> _liveFiles = [];
+
+    public string GitHubToken { get; set; } = string.Empty;
+    public string? GitHubRepositoryUrl { get; set; }
+    public bool IsPublishingToGitHub { get; set; }
+    public string? GitHubPublishError { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -164,17 +219,48 @@
         });
 
 
-        _hubConnection.On<object>("GenerationCompleted", payload =>
-        {
-            _liveLogs.Add("Generation completed");
-            InvokeAsync(StateHasChanged);
-        });
+        _hubConnection.On<object>("GenerationCompleted", async payload =>
+{
+    _liveLogs.Add("Generation completed");
 
-        _hubConnection.On<object>("GenerationFailed", payload =>
+    if (Generation is not null)
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+
+        var refreshed = await client.GetFromJsonAsync<ProjectGenerationDto>(
+            $"/api/generations/{Generation.Id}");
+
+        if (refreshed is not null)
         {
-            _liveLogs.Add(payload?.ToString() ?? "Generation failed");
-            InvokeAsync(StateHasChanged);
-        });
+            Generation = refreshed;
+        }
+    }
+
+    IsLoading = false;
+
+    await InvokeAsync(StateHasChanged);
+});
+        _hubConnection.On<object>("GenerationFailed", async payload =>
+{
+    _liveLogs.Add(payload?.ToString() ?? "Generation failed");
+
+    if (Generation is not null)
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+
+        var refreshed = await client.GetFromJsonAsync<ProjectGenerationDto>(
+            $"/api/generations/{Generation.Id}");
+
+        if (refreshed is not null)
+        {
+            Generation = refreshed;
+        }
+    }
+
+    IsLoading = false;
+
+    await InvokeAsync(StateHasChanged);
+});
 
 
         _hubConnection.On<StepEvent>("StepStarted", payload =>
@@ -190,6 +276,8 @@
             _liveLogs.Add($"{payload.Step} completed");
             InvokeAsync(StateHasChanged);
         });
+
+
 
         _hubConnection.On<FileEvent>("FileGenerationStarted", payload =>
         {
@@ -225,10 +313,33 @@
             InvokeAsync(StateHasChanged);
         });
 
+        _hubConnection.On<FileEvent>("FileContentStreamingStarted", payload =>
+{
+    _streamingFileContent[payload.File] = string.Empty;
+    _liveLogs.Add($"Streaming started: {payload.File}");
+    InvokeAsync(StateHasChanged);
+});
+
+        _hubConnection.On<FileDeltaEvent>("FileContentDelta", payload =>
+        {
+            if (!_streamingFileContent.ContainsKey(payload.File))
+                _streamingFileContent[payload.File] = string.Empty;
+
+            _streamingFileContent[payload.File] += payload.Delta;
+
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<FileEvent>("FileContentStreamingCompleted", payload =>
+        {
+            _liveLogs.Add($"Streaming completed: {payload.File}");
+            InvokeAsync(StateHasChanged);
+        });
+
         await _hubConnection.StartAsync();
     }
 
-    private async Task CreateGeneration()
+    public async Task CreateGeneration()
     {
         IsLoading = true;
 
@@ -254,6 +365,7 @@
 
             _liveLogs.Clear();
             _liveFiles.Clear();
+            _streamingFileContent.Clear();
 
             foreach (var step in _liveSteps)
             {
@@ -287,7 +399,7 @@
         }
     }
 
-    private async Task PollGenerationUntilDone(Guid id)
+    public async Task PollGenerationUntilDone(Guid id)
     {
         var client = HttpClientFactory.CreateClient("Api");
 
@@ -310,7 +422,7 @@
         }
     }
 
-    private void UpdateStep(string name, string status)
+    public void UpdateStep(string name, string status)
     {
         var step = _liveSteps.FirstOrDefault(x =>
             x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -321,7 +433,7 @@
         }
     }
 
-    private static string StepCss(string status)
+    public static string StepCss(string status)
     {
         return status switch
         {
@@ -332,6 +444,46 @@
         };
     }
 
+    public async Task PublishToGitHub()
+    {
+        GitHubPublishError = null;
+        if (Generation is null)
+            return;
+
+        IsPublishingToGitHub = true;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+
+            var response = await client.PostAsJsonAsync(
+                "/api/github/publish",
+                new
+                {
+                    GenerationId = Generation.Id,
+                    RepositoryName = Generation.ProjectName,
+                    IsPrivate = true,
+                    GitHubToken
+                });
+
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content
+                .ReadFromJsonAsync<PublishToGitHubResponse>();
+
+            GitHubRepositoryUrl = result?.RepositoryUrl;
+        }
+        catch (Exception ex)
+        {
+            GitHubPublishError = ex.Message;
+        }
+        finally
+        {
+            IsPublishingToGitHub = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_hubConnection is not null)
@@ -340,59 +492,10 @@
         }
     }
 
-    private sealed class CreateGenerationRequest
-    {
-        public string UserPrompt { get; set; } = string.Empty;
-        public string? TargetStack { get; set; }
-    }
+    
 
-    private sealed class ProjectGenerationDto
-    {
-        public Guid Id { get; set; }
-        public string UserPrompt { get; set; } = string.Empty;
-        public string? ProjectName { get; set; }
-        public string? TargetStack { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string? ErrorMessage { get; set; }
-        public List<GeneratedFileDto> Files { get; set; } = [];
-        public List<GenerationStepDto> Steps { get; set; } = [];
-    }
+    
 
-    private sealed class GeneratedFileDto
-    {
-        public string RelativePath { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
-        public int Order { get; set; }
-    }
-
-    private sealed class GenerationStepDto
-    {
-        public string AgentRole { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public int Order { get; set; }
-    }
-
-    private sealed record LiveStepItem(string Name, string Status)
-    {
-        public string Name { get; set; } = Name;
-        public string Status { get; set; } = Status;
-    }
-
-    private sealed record LiveFileItem(string Path, string Status)
-    {
-        public string Path { get; set; } = Path;
-        public string Status { get; set; } = Status;
-    }
-
-    private sealed class StepEvent
-    {
-        public string Step { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-    }
-
-    private sealed class FileEvent
-    {
-        public string File { get; set; } = string.Empty;
-    }
+    
+    
 }

@@ -3,18 +3,19 @@ using CodingAssistant.Application.AI.Services;
 using CodingAssistant.Application.Realtime;
 using CodingAssistant.Domain.Entities;
 using CodingAssistant.Domain.Enums;
+using System.Text;
 
 namespace CodingAssistant.Application.Generations.Services
 {
     public sealed class ProjectGenerationOrchestrator : IProjectGenerationOrchestrator
     {
-        private readonly IProjectGenerationRepository _repository;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IGenerationRealtimeNotifier _realtimeNotifier;
-        private readonly ICodeGenerationAgent _codeGenerationAgent;
-        private readonly IProjectPlannerAgent _plannerAgent;
-        private readonly IFileGenerationAgent _fileGenerationAgent;
-        private readonly IProjectReviewerAgent _reviewerAgent;
+        public readonly IProjectGenerationRepository _repository;
+        public readonly IUnitOfWork _unitOfWork;
+        public readonly IGenerationRealtimeNotifier _realtimeNotifier;
+        public readonly ICodeGenerationAgent _codeGenerationAgent;
+        public readonly IProjectPlannerAgent _plannerAgent;
+        public readonly IFileGenerationAgent _fileGenerationAgent;
+        public readonly IProjectReviewerAgent _reviewerAgent;
 
         public ProjectGenerationOrchestrator(
             IProjectGenerationRepository repository,
@@ -116,6 +117,7 @@ namespace CodingAssistant.Application.Generations.Services
                 var generatedFiles = new List<GeneratedFile>();
                 var order = 1;
 
+
                 foreach (var plannedFile in plan.Files)
                 {
                     var startFileMessage = $"Generating file: {plannedFile}";
@@ -133,22 +135,67 @@ namespace CodingAssistant.Application.Generations.Services
                         new { Role = AgentRole.Developer.ToString(), Content = startFileMessage },
                         cancellationToken);
 
-                    var aiFile = await _fileGenerationAgent.GenerateFileAsync(
+                    // Notify the UI that the AI streaming preview for this file is starting.
+                    // This gives the user immediate feedback while Ollama prepares the final file content.
+                    await _realtimeNotifier.SendMessageAsync(
+                        generation.Id,
+                        "FileContentStreamingStarted",
+                        new { File = plannedFile },
+                        cancellationToken);
+
+                    
+
+                    // Notify the UI that the streaming preview is complete.
+                    // After this, the backend starts the actual structured JSON file generation.
+                    await _realtimeNotifier.SendMessageAsync(
+                        generation.Id,
+                        "FileContentStreamingCompleted",
+                        new { File = plannedFile },
+                        cancellationToken);
+
+                    var contentBuilder = new StringBuilder();
+
+                    await _realtimeNotifier.SendMessageAsync(
+                        generation.Id,
+                        "FileContentStreamingStarted",
+                        new { File = plannedFile },
+                        cancellationToken);
+
+                    await foreach (var token in _fileGenerationAgent.StreamFileContentAsync(
                         generation.UserPrompt,
                         generation.TargetStack,
                         plan,
                         plannedFile,
+                        cancellationToken))
+                    {
+                        contentBuilder.Append(token);
+
+                        await _realtimeNotifier.SendMessageAsync(
+                            generation.Id,
+                            "FileContentDelta",
+                            new
+                            {
+                                File = plannedFile,
+                                Delta = token
+                            },
+                            cancellationToken);
+                    }
+
+                    await _realtimeNotifier.SendMessageAsync(
+                        generation.Id,
+                        "FileContentStreamingCompleted",
+                        new { File = plannedFile },
                         cancellationToken);
 
                     var generatedFile = new GeneratedFile
                     {
                         ProjectGenerationId = generation.Id,
-                        RelativePath = aiFile.Path,
-                        FileName = Path.GetFileName(aiFile.Path),
-                        Language = aiFile.Language,
+                        RelativePath = plannedFile,
+                        FileName = Path.GetFileName(plannedFile),
+                        Language = InferLanguage(plannedFile),
                         Kind = GeneratedFileKind.SourceCode,
                         Order = order++,
-                        Content = aiFile.Content
+                        Content = CleanStreamedContent(contentBuilder.ToString())
                     };
 
                     await _repository.AddFileAsync(generatedFile, cancellationToken);
@@ -162,7 +209,6 @@ namespace CodingAssistant.Application.Generations.Services
                         new { File = generatedFile.RelativePath },
                         cancellationToken);
                 }
-
                 CompleteStep(generation, AgentRole.Developer);
 
                 await _realtimeNotifier.SendMessageAsync(
@@ -262,7 +308,7 @@ namespace CodingAssistant.Application.Generations.Services
                     CancellationToken.None);
             }
         }
-        private static void CompleteStep(ProjectGeneration generation, AgentRole role)
+        public static void CompleteStep(ProjectGeneration generation, AgentRole role)
         {
             var step = generation.Steps.FirstOrDefault(x => x.AgentRole == role);
 
@@ -274,7 +320,7 @@ namespace CodingAssistant.Application.Generations.Services
             step.CompletedAtUtc = DateTime.UtcNow;
         }
 
-        private static void AddMessage(ProjectGeneration generation, AgentRole role, string content)
+        public static void AddMessage(ProjectGeneration generation, AgentRole role, string content)
         {
             generation.Messages.Add(new AgentMessage
             {
@@ -283,6 +329,48 @@ namespace CodingAssistant.Application.Generations.Services
                 Content = content
             });
         }
+        public static string CleanStreamedContent(string content)
+        {
+            var cleaned = content.Trim();
 
+            if (cleaned.StartsWith("```"))
+            {
+                var firstNewLine = cleaned.IndexOf('\n');
+                var lastFence = cleaned.LastIndexOf("```", StringComparison.Ordinal);
+
+                if (firstNewLine >= 0 && lastFence > firstNewLine)
+                {
+                    cleaned = cleaned[(firstNewLine + 1)..lastFence].Trim();
+                }
+            }
+
+            return cleaned;
+        }
+
+        public static string InferLanguage(string path)
+        {
+            if (Path.GetFileName(path).Equals("Dockerfile", StringComparison.OrdinalIgnoreCase))
+                return "dockerfile";
+
+            if (Path.GetFileName(path).Equals(".gitignore", StringComparison.OrdinalIgnoreCase))
+                return "text";
+
+            if (Path.GetFileName(path).Equals("LICENSE", StringComparison.OrdinalIgnoreCase))
+                return "text";
+
+            var extension = Path.GetExtension(path).ToLowerInvariant();
+
+            return extension switch
+            {
+                ".html" => "html",
+                ".css" => "css",
+                ".js" => "javascript",
+                ".json" => "json",
+                ".md" => "markdown",
+                ".cs" => "csharp",
+                ".razor" => "razor",
+                _ => "text"
+            };
+        }
     }
 }

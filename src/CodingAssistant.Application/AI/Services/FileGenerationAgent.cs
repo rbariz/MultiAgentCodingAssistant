@@ -1,13 +1,15 @@
 ﻿using CodingAssistant.Application.AI.Dtos;
+using CodingAssistant.Application.AI.Prompts;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace CodingAssistant.Application.AI.Services
 {
     public sealed class FileGenerationAgent : IFileGenerationAgent
     {
-        private readonly ILlmClient _llmClient;
-        private readonly IAiJsonParser _jsonParser;
-        private readonly IAiRetryPolicy _retryPolicy;
+        public readonly ILlmClient _llmClient;
+        public readonly IAiJsonParser _jsonParser;
+        public readonly IAiRetryPolicy _retryPolicy;
 
         public FileGenerationAgent(ILlmClient llmClient, IAiJsonParser jsonParser, IAiRetryPolicy retryPolicy)
         {
@@ -26,101 +28,177 @@ namespace CodingAssistant.Application.AI.Services
             
 
             return await _retryPolicy.ExecuteAsync(
-    async ct =>
-    {
-        var systemPrompt = """
-        You are a senior software developer acting as a Developer Agent.
+                    async ct =>
+                    {
 
-        Your task is to generate exactly one file from a project plan.
+                        if (ShouldGenerateRaw(filePath))
+                        {
+                            var content = await GenerateRawFileContentAsync(
+                                userPrompt,
+                                targetStack,
+                                plan,
+                                filePath,
+                                cancellationToken);
 
-        Return ONLY valid JSON.
-        Do not return markdown.
-        Do not wrap the JSON in code fences.
-        Do not add explanations.
+                            return new GeneratedFileAiResponse
+                            {
+                                Path = NormalizeRelativePath(filePath),
+                                Language = InferLanguage(filePath),
+                                Content = content
+                            };
+                        }
+                        var systemPrompt = AiPromptTemplates.FileGenerationSystemPrompt;
 
-        JSON schema:
+                        var userContent = $"""
+                        User request:
+                        {userPrompt}
+
+                        Target stack:
+                        {targetStack ?? "html-css-js"}
+
+                        Project name:
+                        {plan.ProjectName}
+
+                        Project type:
+                        {plan.ProjectType}
+
+                        Project description:
+                        {plan.Description}
+
+                        All project files:
+                        {string.Join("\n", plan.Files)}
+
+                        Architecture notes:
+                        {string.Join("\n", plan.ArchitectureNotes)}
+
+                        File to generate:
+                        {filePath}
+                        """;
+
+                        var raw = await _llmClient.ChatAsync(
+                            [
+                                new LlmChatMessage { Role = "system", Content = systemPrompt },
+                                new LlmChatMessage { Role = "user", Content = userContent }
+                            ],
+                            cancellationToken);
+
+                        var result = _jsonParser.ParseObject<GeneratedFileAiResponse>(
+                            raw,
+                            $"file generation for {filePath}");
+
+                        if (result is null || string.IsNullOrWhiteSpace(result.Content))
+                            throw new InvalidOperationException($"Developer agent did not return valid content for {filePath}.");
+
+                        result.Path = NormalizeRelativePath(filePath);
+
+                        result.Language = string.IsNullOrWhiteSpace(result.Language)
+                            ? InferLanguage(result.Path)
+                            : result.Language.Trim().ToLowerInvariant();
+
+                        return result;
+                    },
+                    $"file generation for {filePath}",
+                    cancellationToken);
+        }
+
+        public async IAsyncEnumerable<string> StreamFilePreviewAsync(
+    string userPrompt,
+    string? targetStack,
+    ProjectPlanAiResponse plan,
+    string filePath,
+    [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-          "path": "index.html",
-          "language": "html",
-          "content": "complete file content"
+            var messages = new List<LlmChatMessage>
+    {
+        new()
+        {
+            Role = "system",
+            Content = """
+            You are a coding assistant.
+            Briefly explain what you are going to generate for the requested file.
+            Do not generate the full file content.
+            Keep it short.
+            """
+        },
+        new()
+        {
+            Role = "user",
+            Content = $"""
+            Project: {plan.ProjectName}
+            File: {filePath}
+            User request: {userPrompt}
+            Target stack: {targetStack}
+            """
+        }
+    };
+
+            await foreach (var token in _llmClient.ChatStreamAsync(messages, cancellationToken))
+            {
+                yield return token;
+            }
         }
 
-        Rules:
-        - Generate exactly the requested file.
-        - Do not generate other files.
-        - Return complete runnable code.
-        - Keep the file concise.
-        - Use relative paths only.
-        - Escape JSON strings correctly.
-        """;
+        public async IAsyncEnumerable<string> StreamFileContentAsync(
+    string userPrompt,
+    string? targetStack,
+    ProjectPlanAiResponse plan,
+    string filePath,
+    [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var messages = new List<LlmChatMessage>
+    {
+        new()
+        {
+            Role = "system",
+            Content = """
+            You are a senior software developer.
 
-        var userContent = $"""
-        User request:
-        {userPrompt}
+            Generate ONLY the raw file content for the requested file.
 
-        Target stack:
-        {targetStack ?? "html-css-js"}
+            Rules:
+            - Do not return JSON.
+            - Do not return markdown fences.
+            - Do not explain.
+            - Do not add file path headers.
+            - Return only the exact file content.
+            """
+        },
+        new()
+        {
+            Role = "user",
+            Content = $"""
+            User request:
+            {userPrompt}
 
-        Project name:
-        {plan.ProjectName}
+            Target stack:
+            {targetStack ?? "html-css-js"}
 
-        Project type:
-        {plan.ProjectType}
+            Project name:
+            {plan.ProjectName}
 
-        Project description:
-        {plan.Description}
+            Project description:
+            {plan.Description}
 
-        All project files:
-        {string.Join("\n", plan.Files)}
+            All files:
+            {string.Join("\n", plan.Files)}
 
-        Architecture notes:
-        {string.Join("\n", plan.ArchitectureNotes)}
+            Architecture notes:
+            {string.Join("\n", plan.ArchitectureNotes)}
 
-        File to generate:
-        {filePath}
-        """;
+            File to generate:
+            {filePath}
+            """
+        }
+    };
 
-        var raw = await _llmClient.ChatAsync(
-            [
-                new LlmChatMessage { Role = "system", Content = systemPrompt },
-                new LlmChatMessage { Role = "user", Content = userContent }
-            ],
-            cancellationToken);
-
-        var result = _jsonParser.ParseObject<GeneratedFileAiResponse>(
-            raw,
-            $"file generation for {filePath}");
-
-        if (result is null || string.IsNullOrWhiteSpace(result.Content))
-            throw new InvalidOperationException($"Developer agent did not return valid content for {filePath}.");
-
-        result.Path = NormalizeRelativePath(
-            string.IsNullOrWhiteSpace(result.Path) ? filePath : result.Path);
-
-        result.Language = string.IsNullOrWhiteSpace(result.Language)
-            ? InferLanguage(result.Path)
-            : result.Language.Trim().ToLowerInvariant();
-
-        return result;
-    },
-    $"file generation for {filePath}",
-    cancellationToken);
+            await foreach (var token in _llmClient.ChatStreamAsync(messages, cancellationToken))
+            {
+                yield return token;
+            }
         }
 
-        //private static string ExtractJson(string raw)
-        //{
-        //    var text = raw.Trim();
 
-        //    var firstBrace = text.IndexOf('{');
-        //    var lastBrace = text.LastIndexOf('}');
-
-        //    if (firstBrace >= 0 && lastBrace > firstBrace)
-        //        return text[firstBrace..(lastBrace + 1)];
-
-        //    return text;
-        //}
-
-        private static string NormalizeRelativePath(string path)
+        public static string NormalizeRelativePath(string path)
         {
             return path
                 .Replace("\\", "/")
@@ -128,9 +206,18 @@ namespace CodingAssistant.Application.AI.Services
                 .TrimStart('/');
         }
 
-        private static string InferLanguage(string path)
+        public static string InferLanguage(string path)
         {
             var extension = Path.GetExtension(path).ToLowerInvariant();
+            
+            if (Path.GetFileName(path).Equals("Dockerfile", StringComparison.OrdinalIgnoreCase))
+                return "dockerfile";
+
+            if (Path.GetFileName(path).Equals(".gitignore", StringComparison.OrdinalIgnoreCase))
+                return "text";
+
+            if (Path.GetFileName(path).Equals("LICENSE", StringComparison.OrdinalIgnoreCase))
+                return "text";
 
             return extension switch
             {
@@ -143,6 +230,89 @@ namespace CodingAssistant.Application.AI.Services
                 ".razor" => "razor",
                 _ => "text"
             };
+        }
+
+        public async Task<string> GenerateRawFileContentAsync(
+    string userPrompt,
+    string? targetStack,
+    ProjectPlanAiResponse plan,
+    string filePath,
+    CancellationToken cancellationToken)
+        {
+            var messages = new List<LlmChatMessage>
+    {
+        new()
+        {
+            Role = "system",
+            Content = """
+            You are a senior software developer.
+
+            Generate ONLY the raw file content.
+
+            Rules:
+            - Do not return JSON.
+            - Do not wrap the output in markdown fences.
+            - Do not add explanations.
+            - Do not add file path headers.
+            - Return only the exact file content.
+            """
+        },
+        new()
+        {
+            Role = "user",
+            Content = $"""
+            User request:
+            {userPrompt}
+
+            Target stack:
+            {targetStack ?? "html-css-js"}
+
+            Project name:
+            {plan.ProjectName}
+
+            Project description:
+            {plan.Description}
+
+            All files:
+            {string.Join("\n", plan.Files)}
+
+            File to generate:
+            {filePath}
+            """
+        }
+    };
+
+            var raw = await _llmClient.ChatAsync(messages, cancellationToken);
+
+            return CleanRawFileContent(raw);
+        }
+
+        public static bool ShouldGenerateRaw(string path)
+        {
+            var fileName = Path.GetFileName(path);
+
+            return fileName.Equals("README.md", StringComparison.OrdinalIgnoreCase)
+                || fileName.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase)
+                || fileName.Equals(".gitignore", StringComparison.OrdinalIgnoreCase)
+                || fileName.Equals("LICENSE", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string CleanRawFileContent(string content)
+        {
+            var cleaned = content.Trim();
+
+            if (cleaned.StartsWith("```"))
+            {
+                var firstNewLine = cleaned.IndexOf('\n');
+                var lastFence = cleaned.LastIndexOf("```", StringComparison.Ordinal);
+
+                if (firstNewLine >= 0 && lastFence > firstNewLine)
+                {
+                    cleaned = cleaned[(firstNewLine + 1)..lastFence].Trim();
+                }
+            }
+
+            return cleaned;
         }
     }
 }

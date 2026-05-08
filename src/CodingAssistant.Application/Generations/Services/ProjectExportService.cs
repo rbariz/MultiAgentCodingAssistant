@@ -6,7 +6,7 @@ namespace CodingAssistant.Application.Generations.Services
 {
     public sealed class ProjectExportService : IProjectExportService
     {
-        private readonly IProjectGenerationRepository _repository;
+        public readonly IProjectGenerationRepository _repository;
 
         public ProjectExportService(IProjectGenerationRepository repository)
         {

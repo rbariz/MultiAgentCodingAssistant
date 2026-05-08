@@ -11,5 +11,21 @@ namespace CodingAssistant.Application.AI.Services
             ProjectPlanAiResponse plan,
             string filePath,
             CancellationToken cancellationToken = default);
+
+        IAsyncEnumerable<string> StreamFilePreviewAsync(
+    string userPrompt,
+    string? targetStack,
+    ProjectPlanAiResponse plan,
+    string filePath,
+    CancellationToken cancellationToken = default);
+
+        IAsyncEnumerable<string> StreamFileContentAsync(
+    string userPrompt,
+    string? targetStack,
+    ProjectPlanAiResponse plan,
+    string filePath,
+    CancellationToken cancellationToken = default);
     }
+
+
 }

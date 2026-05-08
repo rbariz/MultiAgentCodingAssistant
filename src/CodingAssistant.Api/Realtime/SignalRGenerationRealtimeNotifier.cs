@@ -7,7 +7,7 @@ namespace CodingAssistant.Api.Realtime
 
     public sealed class SignalRGenerationRealtimeNotifier : IGenerationRealtimeNotifier
     {
-        private readonly IHubContext<GenerationHub> _hubContext;
+        public readonly IHubContext<GenerationHub> _hubContext;
 
         public SignalRGenerationRealtimeNotifier(
             IHubContext<GenerationHub> hubContext)

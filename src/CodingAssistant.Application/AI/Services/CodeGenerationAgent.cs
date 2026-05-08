@@ -5,7 +5,7 @@ namespace CodingAssistant.Application.AI.Services
 {
     public sealed class CodeGenerationAgent : ICodeGenerationAgent
     {
-        private readonly ILlmClient _llmClient;
+        public readonly ILlmClient _llmClient;
 
         public CodeGenerationAgent(ILlmClient llmClient)
         {
@@ -91,7 +91,7 @@ namespace CodingAssistant.Application.AI.Services
             return result;
         }
 
-        private static string ExtractJson(string raw)
+        public static string ExtractJson(string raw)
         {
             var text = raw.Trim();
 
@@ -107,7 +107,7 @@ namespace CodingAssistant.Application.AI.Services
             return text;
         }
 
-        private static string SanitizeProjectName(string? value)
+        public static string SanitizeProjectName(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return "generated-app";
@@ -124,7 +124,7 @@ namespace CodingAssistant.Application.AI.Services
             return cleaned.Trim('-');
         }
 
-        private static string NormalizeRelativePath(string path)
+        public static string NormalizeRelativePath(string path)
         {
             return path
                 .Replace("\\", "/")

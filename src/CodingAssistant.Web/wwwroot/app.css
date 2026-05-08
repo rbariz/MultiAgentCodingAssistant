@@ -353,3 +353,13 @@ summary {
     font-family: monospace;
     font-size: 13px;
 }
+
+.success-banner {
+    margin: 18px 0;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+    font-weight: 700;
+}

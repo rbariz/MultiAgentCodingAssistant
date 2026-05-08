@@ -4,7 +4,7 @@ namespace CodingAssistant.Infrastructure.Persistence.Repositories
 {
     public sealed class UnitOfWork : IUnitOfWork
     {
-        private readonly CodingAssistantDbContext _db;
+        public readonly CodingAssistantDbContext _db;
 
         public UnitOfWork(CodingAssistantDbContext db)
         {

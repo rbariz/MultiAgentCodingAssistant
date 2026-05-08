@@ -2,7 +2,9 @@
 
 ## Description
 
-Multi-Agent Coding Assistant est une plateforme IA de génération automatique de projets logiciels construite avec .NET 9, Blazor, EF Core, PostgreSQL et Ollama.
+Multi-Agent Coding Assistant est une plateforme IA de génération automatique de projets logiciels construite avec .NET 9, React,Blazor, SignalR, EF Core, PostgreSQL et Ollama.
+
+Le système reproduit le fonctionnement d’une petite équipe virtuelle de développement composée de plusieurs agents IA collaboratifs capables de transformer une simple demande utilisateur en projet logiciel fonctionnel.
 
 Le système fonctionne comme une petite équipe virtuelle composée de plusieurs agents IA capables de :
 
@@ -13,6 +15,11 @@ Le système fonctionne comme une petite équipe virtuelle composée de plusieurs
 - produire des logs temps réel
 - relire et valider le code généré
 - exporter un projet fonctionnel en ZIP
+- Streaming temps réel du code généré
+- Explorateur de fichiers interactif
+- Monaco Editor (VS Code-like)
+- Publication GitHub automatisée
+- Dashboard React/TanStack moderne
 
 ---
 
@@ -64,7 +71,11 @@ MultiAgentCodingAssistant/
 │   ├── CodingAssistant.Infrastructure
 │   ├── CodingAssistant.Contracts
 │   └── CodingAssistant.Web
+│── agent-coding-ui
 │
+├── docs/
+│   ├── screenshots/
+│   └── architecture/
 ├── tests/
 │   └── CodingAssistant.Tests
 
@@ -91,6 +102,10 @@ Developer Agent
 Reviewer Agent
     ↓
 ZIP Export
+	↓
+Realtime Streaming
+    ↓
+GitHub Export
 
 Les événements sont diffusés en temps réel via SignalR :
 
@@ -99,6 +114,25 @@ AgentMessage
 FileGenerated
 GenerationCompleted
 GenerationFailed
+
+## Dashboard IA Temps Réel
+
+Le dashboard moderne React/TanStack permet :
+
+- suivi temps réel des agents IA
+- visualisation des étapes d’orchestration
+- streaming live du code généré
+- visualisation des fichiers générés
+- édition/lecture via Monaco Editor
+- export ZIP
+- publication GitHub
+- monitoring temps réel via SignalR
+
+Le comportement se rapproche d’outils modernes comme :
+- Cursor
+- Devin
+- GitHub Copilot Workspace
+- AI Studio
 
 ## Stack Technique
 
@@ -111,9 +145,13 @@ GenerationFailed
 	Swagger/OpenAPI
 	
 ### Fontend
-	Blazor
-	CSS responsive moderne
-	SignalR Client
+	- React + TanStack Router
+	- Blazor Web App
+	- Tailwind CSS
+	- Monaco Editor
+	- SignalR Client
+	- Dashboard temps réel type AI Ops Center
+	- UI SaaS moderne responsive
 	
 ### AI
 	Ollama
@@ -121,7 +159,7 @@ GenerationFailed
 	OpenAI-ready architecture
 	LangGraph-ready architecture
 	Semantic Kernel ready
-	
+
 ## Screenshots
 
 Home
@@ -138,49 +176,40 @@ TimeLine Screen 1
 ![Timeline 1 ](docs/screenshots/agent-timeline1.png)
 TimeLine Screen 2
 ![Timeline 2 ](docs/screenshots/agent-timeline2.png)
+react Coding Agent UI
+![React UI ](docs/screenshots/coding-agent-ui.png)
 
 
 ## Roadmap
 
-Phase 1 — MVP
- Clean Architecture
- EF Core + PostgreSQL
- API génération
- Multi-agent orchestration
- Génération HTML/CSS/JS
- Export ZIP
- UI Blazor
- Workflow asynchrone
- SignalR realtime
- Ollama integration
- 
-Phase 2
- Background queue workers
- Multi-template generation
- React/Vue/.NET templates
- Dockerfile generation
- AI architecture planner
- AI code reviewer
- Persistent execution history
+## EN COURS
 
-Phase 3
- OpenAI support
- Multi-model routing
- AI test generation
- CI/CD generation
- GitHub export
- Workspace generation
+- Multi-template generation
+- React / Next.js / Blazor templates
+- AI architecture planner
+- AI code reviewer
+- AI-generated tests
+- Persistent execution history
+- Workspace generation
+- Dockerfile intelligent generation
 
-Phase 4
- Autonomous coding workflows
- Multi-file reasoning
- AI debugging agent
- DevOps agent
- Full agent collaboration system
+## À VENIR
+
+- Multi-model routing
+- OpenAI support
+- Patch existing project mode
+- AI debugging agent
+- AI DevOps workflows
+- Multi-file reasoning
+- Autonomous coding workflows
+- CI/CD generation
+- Full agent collaboration system
 
 ## Vision
 
-Construire une plateforme IA capable de transformer une idée exprimée en langage naturel en projet logiciel fonctionnel automatiquement grâce à des workflows multi-agents temps réel.
+Construire une plateforme IA capable de transformer une idée exprimée en langage naturel en projet logiciel fonctionnel grâce à des workflows multi-agents temps réel, du streaming de code, de l’orchestration IA et des agents autonomes collaboratifs.
+
+L’objectif est d’explorer l’évolution des assistants IA vers de véritables équipes virtuelles de développement logiciel.
 
 ## Autheur
 Rachid Bariz

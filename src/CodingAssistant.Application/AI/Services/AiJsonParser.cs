@@ -7,6 +7,7 @@ namespace CodingAssistant.Application.AI.Services
         public T ParseObject<T>(string raw, string context)
         {
             var json = ExtractJson(raw);
+            json = RepairBacktickContent(json);
 
             try
             {
@@ -31,7 +32,7 @@ namespace CodingAssistant.Application.AI.Services
             }
         }
 
-        private static string ExtractJson(string raw)
+        public static string ExtractJson(string raw)
         {
             var text = raw.Trim();
 
@@ -42,6 +43,35 @@ namespace CodingAssistant.Application.AI.Services
                 return text[firstObject..(lastObject + 1)];
 
             return text;
+        }
+        public static string RepairBacktickContent(string json)
+        {
+            const string marker = "\"content\":";
+
+            var markerIndex = json.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+            if (markerIndex < 0)
+                return json;
+
+            var afterMarkerIndex = markerIndex + marker.Length;
+
+            while (afterMarkerIndex < json.Length && char.IsWhiteSpace(json[afterMarkerIndex]))
+                afterMarkerIndex++;
+
+            if (afterMarkerIndex >= json.Length || json[afterMarkerIndex] != '`')
+                return json;
+
+            var contentStart = afterMarkerIndex + 1;
+            var contentEnd = json.LastIndexOf('`');
+
+            if (contentEnd <= contentStart)
+                return json;
+
+            var rawContent = json[contentStart..contentEnd];
+
+            var encodedContent = System.Text.Json.JsonSerializer.Serialize(rawContent);
+
+            return json[..afterMarkerIndex] + encodedContent + json[(contentEnd + 1)..];
         }
     }
 }

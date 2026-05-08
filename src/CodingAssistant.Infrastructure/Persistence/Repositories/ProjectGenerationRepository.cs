@@ -13,7 +13,7 @@ namespace CodingAssistant.Infrastructure.Persistence.Repositories
 
     public sealed class ProjectGenerationRepository : IProjectGenerationRepository
     {
-        private readonly CodingAssistantDbContext _db;
+        public readonly CodingAssistantDbContext _db;
 
         public ProjectGenerationRepository(CodingAssistantDbContext db)
         {

@@ -7,8 +7,8 @@ namespace CodingAssistant.Application.Generations.Services
 {
     public sealed class ProjectGenerationService : IProjectGenerationService
     {
-        private readonly IProjectGenerationRepository _repository;
-        private readonly IUnitOfWork _unitOfWork;
+        public readonly IProjectGenerationRepository _repository;
+        public readonly IUnitOfWork _unitOfWork;
 
         public ProjectGenerationService(
             IProjectGenerationRepository repository,
@@ -107,7 +107,7 @@ namespace CodingAssistant.Application.Generations.Services
                 .ToList();
         }
 
-        private static ProjectGenerationDto ToDto(ProjectGeneration generation)
+        public static ProjectGenerationDto ToDto(ProjectGeneration generation)
         {
             return new ProjectGenerationDto
             {

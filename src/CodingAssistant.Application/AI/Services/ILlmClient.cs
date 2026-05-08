@@ -12,5 +12,10 @@ namespace CodingAssistant.Application.AI.Services
         Task<string> ChatAsync(
             IReadOnlyList<LlmChatMessage> messages,
             CancellationToken cancellationToken = default);
+
+
+        IAsyncEnumerable<string> ChatStreamAsync(
+    IReadOnlyList<LlmChatMessage> messages,
+    CancellationToken cancellationToken = default);
     }
 }
