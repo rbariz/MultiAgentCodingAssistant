@@ -176,8 +176,10 @@ TimeLine Screen 1
 ![Timeline 1 ](docs/screenshots/agent-timeline1.png)
 TimeLine Screen 2
 ![Timeline 2 ](docs/screenshots/agent-timeline2.png)
-react Coding Agent UI
+React Coding Agent UI
 ![React UI ](docs/screenshots/coding-agent-ui.png)
+Agent Coding UI Generation
+![React UI ](docs/screenshots/coding-agent-ui-generation.png)
 
 
 ## Roadmap
